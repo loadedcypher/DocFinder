@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../models/doctor_model.dart';
 import '../services/doctor_service.dart';
 import '../../appointment/services/appointment_service.dart';
 import '../../appointment/models/appointment_model.dart';
 import '../../../core/theme/app_theme.dart';
+import '../../../shared/services/email_service.dart';
 
 class DoctorDetailScreen extends StatefulWidget {
   final String doctorId;
@@ -41,6 +43,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
   // For appointment booking
   DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
   TimeOfDay _selectedTime = const TimeOfDay(hour: 9, minute: 0);
+  final TextEditingController _noteController = TextEditingController();
 
   @override
   void initState() {
@@ -57,6 +60,7 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
   void dispose() {
     _tabController.dispose();
     _mapController?.dispose();
+    _noteController.dispose();
     super.dispose();
   }
 
@@ -123,22 +127,53 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
       _selectedTime.minute,
     );
 
-    // Create appointment
+    // Format date and time for email
+    final String formattedDate = 
+        '${_selectedDate.day}/${_selectedDate.month}/${_selectedDate.year} at '
+        '${_selectedTime.hour}:${_selectedTime.minute.toString().padLeft(2, '0')}';
+
+    // Create appointment in Firestore
     final appointment = Appointment.createPending(
       userId: _auth.currentUser!.uid,
       doctorId: _doctor!.id,
       date: appointmentDateTime,
+      // Add notes to the appointment if your model supports it
+      // If not, you'll need to modify your Appointment model
     );
+    
+    // Store the notes for email even if we don't save them in Firestore
+    final String notes = _noteController.text;
 
     try {
+      // Save the appointment to database
       final appointmentId = await _appointmentService.bookAppointment(
         appointment,
       );
 
       if (appointmentId != null) {
-        Fluttertoast.showToast(
-          msg: 'Appointment requested successfully',
-          backgroundColor: AppTheme.successColor,
+        // Show dialog asking if they want to also send an email
+        showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Appointment Requested'),
+            content: const Text(
+                'Your appointment has been saved. Would you like to also send an email request to the doctor?'),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text('No'),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _sendEmailRequest(formattedDate, notes);
+                },
+                child: const Text('Yes, send email'),
+              ),
+            ],
+          ),
         );
       } else {
         Fluttertoast.showToast(
@@ -149,6 +184,40 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
     } catch (e) {
       Fluttertoast.showToast(
         msg: 'An error occurred',
+        backgroundColor: AppTheme.errorColor,
+      );
+    }
+  }
+  
+  // Send email request to the doctor
+  Future<void> _sendEmailRequest(String formattedDate, String notes) async {
+    try {
+      final user = _auth.currentUser;
+      if (user == null || _doctor == null) return;
+      
+      bool emailSent = await EmailService.sendAppointmentRequest(
+        doctorEmail: _doctor!.email,
+        doctorName: _doctor!.name,
+        patientName: user.displayName ?? 'Patient',
+        requestedDate: formattedDate,
+        patientPhone: user.phoneNumber,
+        additionalInfo: notes,
+      );
+      
+      if (emailSent) {
+        Fluttertoast.showToast(
+          msg: 'Email request sent to doctor',
+          backgroundColor: AppTheme.successColor,
+        );
+      } else {
+        Fluttertoast.showToast(
+          msg: 'Could not send email request',
+          backgroundColor: AppTheme.errorColor,
+        );
+      }
+    } catch (e) {
+      Fluttertoast.showToast(
+        msg: 'Error sending email: ${e.toString()}',
         backgroundColor: AppTheme.errorColor,
       );
     }
@@ -414,6 +483,18 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
               ),
             ),
           ),
+          const SizedBox(height: 16),
+
+          // Notes field
+          TextField(
+            controller: _noteController,
+            maxLines: 3,
+            decoration: const InputDecoration(
+              labelText: 'Notes for the doctor',
+              hintText: 'Any specific concerns or additional information',
+              border: OutlineInputBorder(),
+            ),
+          ),
           const SizedBox(height: 32),
 
           // Authentication warning if not logged in
@@ -519,8 +600,14 @@ class _DoctorDetailScreenState extends State<DoctorDetailScreen>
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () {
-                    // Open in maps app (would need url_launcher package)
+                  onPressed: () async {
+                    // Open location in maps app
+                    final lat = _doctor!.location.latitude;
+                    final lng = _doctor!.location.longitude;
+                    final url = 'https://www.google.com/maps/search/?api=1&query=$lat,$lng';
+                    if (await canLaunchUrl(Uri.parse(url))) {
+                      await launchUrl(Uri.parse(url));
+                    }
                   },
                   icon: const Icon(Icons.directions),
                   label: const Text('Get Directions'),

@@ -13,12 +13,14 @@ import {
   CircularProgress,
   Divider,
   FormHelperText,
+  Paper,
 } from '@mui/material';
 import { 
   Save as SaveIcon, 
   ArrowBack as ArrowBackIcon,
   LocationOn as LocationIcon,
 } from '@mui/icons-material';
+import LocationPicker from '../components/LocationPicker';
 import { 
   doc, 
   getDoc, 
@@ -74,6 +76,9 @@ export default function DoctorForm() {
     status: 'active',
   });
   
+  // State for map location
+  const [location, setLocation] = useState(null);
+  
   const [loading, setLoading] = useState(false);
   const [fetchLoading, setFetchLoading] = useState(false);
   const [error, setError] = useState('');
@@ -91,7 +96,7 @@ export default function DoctorForm() {
         
         if (doctorDoc.exists()) {
           const data = doctorDoc.data();
-          setFormData({
+          const doctorData = {
             name: data.name || '',
             specialty: data.specialty || '',
             city: data.city || '',
@@ -102,7 +107,17 @@ export default function DoctorForm() {
             latitude: data.location ? data.location.latitude.toString() : '',
             longitude: data.location ? data.location.longitude.toString() : '',
             status: data.status || 'active',
-          });
+          };
+          
+          setFormData(doctorData);
+          
+          // Set location for the map if coordinates exist
+          if (data.location) {
+            setLocation({
+              lat: data.location.latitude,
+              lng: data.location.longitude
+            });
+          }
         } else {
           setError('Doctor not found');
         }
@@ -190,19 +205,29 @@ export default function DoctorForm() {
         phone: formData.phone.trim(),
         email: formData.email.trim(),
         status: formData.status,
+        updatedAt: serverTimestamp(),
       };
+      
+      // Add location from the map picker
+      if (location) {
+        doctorData.location = new GeoPoint(
+          location.lat,
+          location.lng
+        );
+        // Also update form data for consistency
+        formData.latitude = location.lat.toString();
+        formData.longitude = location.lng.toString();
+      } else if (formData.latitude && formData.longitude) {
+        // Fallback to form inputs if map wasn't used
+        doctorData.location = new GeoPoint(
+          parseFloat(formData.latitude),
+          parseFloat(formData.longitude)
+        );
+      }
       
       // Add photo URL if provided
       if (formData.photoUrl.trim()) {
         doctorData.photoUrl = formData.photoUrl.trim();
-      }
-      
-      // Add location if both latitude and longitude are provided
-      if (formData.latitude && formData.longitude) {
-        doctorData.location = new GeoPoint(
-          Number(formData.latitude),
-          Number(formData.longitude)
-        );
       }
       
       // Add or update doctor
@@ -384,38 +409,47 @@ export default function DoctorForm() {
                 />
               </Grid>
               
-              {/* Coordinates Fields */}
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Latitude"
-                  name="latitude"
-                  value={formData.latitude}
-                  onChange={handleChange}
-                  error={!!validationErrors.latitude}
-                  helperText={validationErrors.latitude}
-                />
-              </Grid>
-              
-              <Grid item xs={12} md={6}>
-                <TextField
-                  fullWidth
-                  label="Longitude"
-                  name="longitude"
-                  value={formData.longitude}
-                  onChange={handleChange}
-                  error={!!validationErrors.longitude}
-                  helperText={validationErrors.longitude}
-                />
-              </Grid>
-              
+              {/* Map Location Picker */}
               <Grid item xs={12}>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
-                  <LocationIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-                  <FormHelperText sx={{ m: 0 }}>
-                    Enter coordinates for map display in the mobile app
+                <Paper elevation={0} variant="outlined" sx={{ p: 2, mt: 2 }}>
+                  <Typography variant="subtitle1" gutterBottom sx={{ display: 'flex', alignItems: 'center' }}>
+                    <LocationIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
+                    Select Location on Map
+                  </Typography>
+                  
+                  <FormHelperText sx={{ mb: 2 }}>
+                    Use the map to select the doctor's location in Botswana. You can search for an address, 
+                    select from major cities, or click directly on the map.
                   </FormHelperText>
-                </Box>
+                  
+                  <LocationPicker
+                    initialLocation={location || (formData.latitude && formData.longitude ? 
+                      { lat: parseFloat(formData.latitude), lng: parseFloat(formData.longitude) } : null)}
+                    onLocationSelect={(newLocation) => {
+                      setLocation(newLocation);
+                      setFormData(prev => ({
+                        ...prev,
+                        latitude: newLocation.lat.toString(),
+                        longitude: newLocation.lng.toString()
+                      }));
+                      
+                      // Clear any validation errors
+                      if (validationErrors.latitude || validationErrors.longitude) {
+                        setValidationErrors(prev => ({
+                          ...prev,
+                          latitude: '',
+                          longitude: ''
+                        }));
+                      }
+                    }}
+                  />
+                </Paper>
+                
+                {(validationErrors.latitude || validationErrors.longitude) && (
+                  <Alert severity="error" sx={{ mt: 1 }}>
+                    Please select a valid location on the map
+                  </Alert>
+                )}
               </Grid>
               
               {/* Status Field */}

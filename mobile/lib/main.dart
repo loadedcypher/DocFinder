@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/services.dart';
+
+import 'features/doctor/models/doctor_model.dart';
 
 import 'core/theme/app_theme.dart';
 import 'core/constants/app_constants.dart';
@@ -11,8 +12,10 @@ import 'features/home/screens/home_screen.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/register_screen.dart';
 import 'features/doctor/screens/doctor_list_screen.dart';
+import 'features/doctor/screens/doctor_detail_screen.dart';
 import 'features/appointment/screens/appointment_list_screen.dart';
 import 'features/profile/screens/profile_screen.dart';
+import 'features/map/screens/doctor_map_screen.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +49,44 @@ class MyApp extends StatelessWidget {
         theme: AppTheme.lightTheme,
         debugShowCheckedModeBanner: false,
         home: const DocFinderApp(),
+        onGenerateRoute: (settings) {
+          if (settings.name == '/doctor/details') {
+            // Pass the doctor object to the detail screen
+            final Doctor doctor = settings.arguments as Doctor;
+            return MaterialPageRoute(
+              builder: (context) => DoctorDetailScreen(
+                doctorId: doctor.id,
+                initialTabIndex: 0,
+              ),
+            );
+          } else if (settings.name == '/register') {
+            // Registration screen route
+            return MaterialPageRoute(
+              builder: (context) => RegisterScreen(
+                onLoginTap: () => Navigator.pop(context),
+              ),
+            );
+          }
+          
+          // Regular routes
+          if (settings.name == '/home') {
+            return MaterialPageRoute(builder: (context) => const HomeScreen());
+          } else if (settings.name == '/doctors') {
+            return MaterialPageRoute(builder: (context) => const DoctorListScreen());
+          } else if (settings.name == '/map') {
+            return MaterialPageRoute(builder: (context) => const DoctorMapScreen());
+          } else if (settings.name == '/appointments') {
+            return MaterialPageRoute(builder: (context) => const AppointmentListScreen());
+          } else if (settings.name == '/profile') {
+            return MaterialPageRoute(
+              builder: (context) => ProfileScreen(
+                onLogoutSuccess: () {},
+              ),
+            );
+          }
+          
+          return null;
+        },
       ),
     );
   }
@@ -60,16 +101,28 @@ class DocFinderApp extends StatefulWidget {
 
 class _DocFinderAppState extends State<DocFinderApp> {
   int _currentIndex = 0;
-  final bool _showAuthPages = false;
+  bool _showAuthPages = false; // Keep false by default to allow guest access
   bool _isRegistering = false;
+  
+  // Page names for routes
+  static const Map<String, String> _routes = {
+    '/home': 'Home',
+    '/doctors': 'Doctors',
+    '/map': 'Map',
+    '/appointments': 'Appointments',
+    '/profile': 'Profile',
+  };
 
   @override
   Widget build(BuildContext context) {
     // If showing auth pages, render the login or register screen
+    // This keeps the check simple so users can continue as guest
     if (_showAuthPages) {
       return _isRegistering
           ? RegisterScreen(onLoginTap: _toggleRegisterLogin)
-          : LoginScreen(onRegisterTap: _toggleRegisterLogin);
+          : LoginScreen(
+              onRegisterTap: _toggleRegisterLogin,
+            );
     }
 
     // Otherwise show the main app interface
@@ -82,6 +135,9 @@ class _DocFinderAppState extends State<DocFinderApp> {
 
           // Doctors Tab
           const DoctorListScreen(),
+          
+          // Map Tab
+          const DoctorMapScreen(),
 
           // Appointments Tab
           const AppointmentListScreen(),
@@ -89,9 +145,10 @@ class _DocFinderAppState extends State<DocFinderApp> {
           // Profile Tab
           ProfileScreen(
             onLogoutSuccess: () {
-              // Reset to home tab after logout
+              // Show auth pages after logout
               setState(() {
                 _currentIndex = 0;
+                _showAuthPages = true;
               });
             },
           ),
@@ -114,6 +171,10 @@ class _DocFinderAppState extends State<DocFinderApp> {
             label: 'Doctors',
           ),
           BottomNavigationBarItem(
+            icon: Icon(Icons.map),
+            label: 'Map',
+          ),
+          BottomNavigationBarItem(
             icon: Icon(Icons.calendar_today),
             label: 'Appointments',
           ),
@@ -127,5 +188,13 @@ class _DocFinderAppState extends State<DocFinderApp> {
     setState(() {
       _isRegistering = !_isRegistering;
     });
+  }
+  
+  @override
+  void initState() {
+    super.initState();
+    
+    // We don't force authentication check on startup anymore
+    // This allows guest access by default
   }
 }

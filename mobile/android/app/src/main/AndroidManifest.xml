@@ -20,6 +20,13 @@
               android:name="io.flutter.embedding.android.NormalTheme"
               android:resource="@style/NormalTheme"
               />
+            <meta-data
+              android:name="com.google.android.geo.API_KEY"
+              android:value="AIzaSyBFWTPkuN6SO0zEjKc2QCj8SQMg50e0vSo"/>
+            <meta-data
+              android:name="io.flutter.embedded_views_preview"
+              android:value="true"/>
+
             <intent-filter>
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
