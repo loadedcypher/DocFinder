@@ -199,7 +199,7 @@ export default function Dashboard() {
                         variant="outlined" 
                         size="small"
                         component={Link}
-                        to={`/doctors/${doctor.id}`}
+                        to={`/doctors/edit/${doctor.id}`}
                       >
                         View
                       </Button>

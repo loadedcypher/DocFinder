@@ -296,7 +296,7 @@ export default function DoctorList() {
                   <TableCell align="right">
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
                       <Tooltip title="Edit">
-                        <IconButton component={Link} to={`/doctors/${doctor.id}/edit`}>
+                        <IconButton component={Link} to={`/doctors/edit/${doctor.id}`}>
                           <EditIcon />
                         </IconButton>
                       </Tooltip>

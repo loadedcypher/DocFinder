@@ -65,20 +65,23 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setCurrentUser(user);
-      setLoading(false);
       
       if (user) {
         try {
           const userData = await getUserData(user.uid);
-          if (userData) {
+          if (userData && userData.role) {
             setUserRole(userData.role);
+          } else {
+            setUserRole(null); // Explicitly set to null if no role or no userData
           }
         } catch (error) {
           console.error('Error fetching user data:', error);
+          setUserRole(null); // Set role to null on error to ensure isAdmin is false
         }
       } else {
         setUserRole(null);
       }
+      setLoading(false); // Set loading to false after user and role processing is complete
     });
 
     return unsubscribe;

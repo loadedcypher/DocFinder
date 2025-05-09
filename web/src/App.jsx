@@ -15,17 +15,18 @@ import DoctorForm from './pages/DoctorForm';
 import Statistics from './pages/Statistics';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
+import ProfilePage from './pages/ProfilePage';
 
 // Protected Route component
 const ProtectedRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, isAdmin } = useAuth();
   
   if (loading) {
     return <div>Loading...</div>;
   }
   
-  if (!currentUser) {
-    return <Navigate to="/login" />;
+  if (!currentUser || !isAdmin) {
+    return <Navigate to="/login" replace />;
   }
   
   return children;
@@ -92,6 +93,14 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Settings />
+                </DashboardLayout>
+              </ProtectedRoute>
+            } />
+            
+            <Route path="/profile" element={
+              <ProtectedRoute>
+                <DashboardLayout>
+                  <ProfilePage />
                 </DashboardLayout>
               </ProtectedRoute>
             } />
