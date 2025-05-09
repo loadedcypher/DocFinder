@@ -31,6 +31,8 @@ import {
   Settings as SettingsIcon,
 } from '@mui/icons-material';
 
+import AppLogo from '../assets/medical-app.svg'; // Import the logo
+
 const drawerWidth = 240;
 
 export default function DashboardLayout({ children }) {
@@ -69,9 +71,10 @@ export default function DashboardLayout({ children }) {
 
   const drawer = (
     <div>
-      <Toolbar sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
-        <Typography variant="h6" noWrap component="div" color="primary">
-          DocFinder Admin
+      <Toolbar sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', py: 2, columnGap: 1 }}>
+        <img src={AppLogo} alt="DocFinder Logo" style={{ height: '32px', width: '32px' }} />
+        <Typography variant="h6" noWrap component="div" color="text.primary">
+          DocFinder
         </Typography>
       </Toolbar>
       <Divider />
